@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ব্লগার ইউআরএল শর্টনার</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="card">
+    <h1>ব্লগার ইউআরএল শর্টনার</h1>
+    <p class="muted">তোমার আসল লিংক বসাও, ছোট লিংক পেয়ে যাবে!</p>
+
+    <form id="shortenForm">
+      <label>আসল লিংক (URL)</label>
+      <input id="longUrl" type="url" placeholder="https://example.com/..." required>
+
+      <label>কাস্টম নাম (ঐচ্ছিক)</label>
+      <input id="custom" type="text" placeholder="যেমন: amarblog" maxlength="30" pattern="[A-Za-z0-9-_]{3,30}">
+
+      <button id="createBtn" type="submit">লিংক ছোট করো</button>
+    </form>
+
+    <div id="result" class="hidden">
+      <p>তোমার ছোট লিংক:</p>
+      <a id="shortLink" href="#" target="_blank"></a>
+      <p id="info" class="muted"></p>
+    </div>
+
+    <div id="error" class="error hidden"></div>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+    import {
+      getFirestore, collection, query, where, getDocs, addDoc, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+
+    // 🔥 তোমার নিজের Firebase Config এখানে বসাও 🔥
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const colName = "shorturls";
+
+    const form = document.getElementById('shortenForm');
+    const longUrlInput = document.getElementById('longUrl');
+    const customInput = document.getElementById('custom');
+    const resultDiv = document.getElementById('result');
+    const shortLinkA = document.getElementById('shortLink');
+    const errorDiv = document.getElementById('error');
+
+    function randomCode(len = 6) {
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+      return Array.from({length: len}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    }
+
+    async function exists(code) {
+      const q = query(collection(db, colName), where("short", "==", code));
+      const snap = await getDocs(q);
+      return !snap.empty;
+    }
+
+    async function create(short, longUrl) {
+      await addDoc(collection(db, colName), {
+        short,
+        longUrl,
+        createdAt: serverTimestamp(),
+      });
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      resultDiv.classList.add('hidden');
+      errorDiv.classList.add('hidden');
+
+      let longUrl = longUrlInput.value.trim();
+      if (!/^https?:\/\//i.test(longUrl)) longUrl = "https://" + longUrl;
+
+      let short = customInput.value.trim();
+      if (!short) {
+        do { short = randomCode(); } while (await exists(short));
+      } else {
+        if (await exists(short)) {
+          errorDiv.textContent = "এই নামটি আগেই নেওয়া হয়েছে!";
+          errorDiv.classList.remove('hidden');
+          return;
+        }
+      }
+
+      await create(short, longUrl);
+
+      const shortUrl = location.origin + "/redirect.html?id=" + short;
+      shortLinkA.href = shortUrl;
+      shortLinkA.textContent = shortUrl;
+      resultDiv.classList.remove('hidden');
+    });
+  </script>
+</body>
+</html>
