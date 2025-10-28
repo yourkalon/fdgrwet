@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>রিডাইরেক্ট হচ্ছে...</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="card">
+    <h2 id="status">রিডাইরেক্ট হচ্ছে...</h2>
+    <p id="msg" class="muted">দয়া করে অপেক্ষা করুন...</p>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+    import {
+      getFirestore, collection, query, where, getDocs
+    } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const colName = "shorturls";
+
+    const params = new URL(location.href).searchParams;
+    const id = params.get("id");
+
+    const status = document.getElementById('status');
+    const msg = document.getElementById('msg');
+
+    async function redirectNow() {
+      if (!id) {
+        status.textContent = "লিংক পাওয়া যায়নি!";
+        msg.textContent = "দয়া করে সঠিক শর্ট কোড দিন।";
+        return;
+      }
+
+      const q = query(collection(db, colName), where("short", "==", id));
+      const snap = await getDocs(q);
+      if (snap.empty) {
+        status.textContent = "এই শর্ট লিংকটি পাওয়া যায়নি!";
+        msg.textContent = "সম্ভবত এটি মুছে ফেলা হয়েছে বা ভুল কোড দিয়েছেন।";
+        return;
+      }
+
+      const data = snap.docs[0].data();
+      status.textContent = "রিডাইরেক্ট হচ্ছে...";
+      msg.innerHTML = `<a href="${data.longUrl}">${data.longUrl}</a>`;
+      setTimeout(() => (location.href = data.longUrl), 800);
+    }
+
+    redirectNow();
+  </script>
+</body>
+</html>
